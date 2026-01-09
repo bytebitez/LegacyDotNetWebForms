@@ -1,0 +1,29 @@
+
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Mobile Layout</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+</head>
+<body>
+    <div>
+        <h1>Mobile Master Page</h1>
+        <section class="content-wrapper main-content clear-fix">
+            @Body
+        </section>
+        <ViewSwitcher />
+    </div>
+</body>
+</html>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Page_Load logic would go here if there was any
+        base.OnInitialized();
+    }
+}

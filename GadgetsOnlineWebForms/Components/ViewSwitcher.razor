@@ -1,0 +1,73 @@
+@namespace GadgetsOnlineWebForms.Components.ViewSwitcher
+
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Http
+@using Microsoft.Extensions.Logging
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager NavigationManager
+@inject ILogger<ViewSwitcher> Logger
+
+@if (IsVisible)
+{
+    <div id="viewSwitcher">
+        @CurrentView view | <NavLink href="@SwitchUrl" data-ajax="false">Switch to @AlternateView</NavLink>
+    </div>
+}
+
+@code {
+    private string CurrentView { get; set; } = string.Empty;
+    private string AlternateView { get; set; } = string.Empty;
+    private string SwitchUrl { get; set; } = string.Empty;
+    private bool IsVisible { get; set; } = true;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var httpContext = HttpContextAccessor.HttpContext;
+            if (httpContext == null)
+            {
+                Logger.LogWarning("HttpContext is null in ViewSwitcher");
+                IsVisible = false;
+                return;
+            }
+
+            // Determine current view based on user agent
+            var isMobile = IsMobileDevice(httpContext);
+            CurrentView = isMobile ? "Mobile" : "Desktop";
+            AlternateView = isMobile ? "Desktop" : "Mobile";
+
+            // Get current URL
+            var currentUrl = httpContext.Request.Path + httpContext.Request.QueryString;
+            
+            // Create switch URL
+            SwitchUrl = $"/SwitchView?view={AlternateView}&ReturnUrl={Uri.EscapeDataString(currentUrl)}";
+
+            Logger.LogInformation("ViewSwitcher initialized. Current view: {CurrentView}, Alternate view: {AlternateView}", CurrentView, AlternateView);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error initializing ViewSwitcher");
+            IsVisible = false;
+        }
+    }
+
+    private bool IsMobileDevice(HttpContext context)
+    {
+        var userAgent = context.Request.Headers["User-Agent"].ToString();
+        
+        if (string.IsNullOrEmpty(userAgent))
+        {
+            return false;
+        }
+
+        // Check for mobile user agents
+        var mobileKeywords = new[]
+        {
+            "Mobile", "Android", "iPhone", "iPad", "iPod", "Windows Phone",
+            "BlackBerry", "webOS", "Opera Mini", "IEMobile"
+        };
+
+        return mobileKeywords.Any(keyword => userAgent.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+    }
+}

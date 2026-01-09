@@ -1,0 +1,75 @@
+@namespace GadgetsOnlineWebForms.Components.Pages.Views.Store.Details
+
+@page "/Views/Store/Details"
+@using GadgetsOnline.Models
+@using GadgetsOnline.Services
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Logging
+@inject NavigationManager NavigationManager
+@inject ILogger<Details> Logger
+
+<PageTitle>@pageTitle</PageTitle>
+
+<h2>@Model?.Name</h2>
+
+<p>
+    <img alt="@Model?.Name" src="@Model?.ProductArtUrl" />
+</p>
+
+<div id="album-details">
+    <p>
+        <em>Type:</em>
+        @Model?.Category?.Name
+    </p>
+    <p>
+        <em>Description:</em>
+        @Model?.Category?.Description
+    </p>
+    <p>
+        <em>Price:</em>$
+        @(Model != null ? String.Format("{0:F}", Model.Price) : "0.00")
+    </p>
+    <p class="button">
+        <NavLink href="@($"/Views/ShoppingCart/ViewCart?addToCart={Model?.ProductId}")">Add to cart</NavLink>
+    </p>
+</div>
+
+@code {
+    private Product? Model;
+    private string pageTitle = "Gadget";
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            var productIdString = query["productId"];
+
+            int productId = 0;
+            if (!Int32.TryParse(productIdString, out productId))
+            {
+                Logger.LogWarning("Invalid productId parameter. Redirecting to home page.");
+                NavigationManager.NavigateTo("/Views/Home/Index", true);
+                return;
+            }
+
+            var inventory = new Inventory();
+            Model = inventory.GetProductById(productId);
+
+            if (Model == null)
+            {
+                Logger.LogWarning($"Product with ID {productId} not found. Redirecting to home page.");
+                NavigationManager.NavigateTo("/Views/Home/Index", true);
+                return;
+            }
+
+            pageTitle = "Gadget - " + Model.Name;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading product details");
+            NavigationManager.NavigateTo("/Views/Home/Index", true);
+        }
+    }
+}

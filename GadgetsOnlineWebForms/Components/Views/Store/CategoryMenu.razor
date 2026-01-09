@@ -1,0 +1,39 @@
+@namespace GadgetsOnlineWebForms.Components.Views.Store.CategoryMenu
+
+@using GadgetsOnline.Models
+@using GadgetsOnline.Services
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Logging
+@inject ILogger<CategoryMenu> Logger
+
+<ul id="categories">
+    @if (categories != null)
+    {
+        @foreach (var category in categories)
+        {
+            string categoryUrl = "/Views/Store/Browse?categoryId=" + category.CategoryId;
+            <li>
+                <NavLink href="@categoryUrl">@category.Name</NavLink>
+            </li>
+        }
+    }
+</ul>
+
+@code {
+    private List<Category>? categories;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var inventory = new Inventory();
+            categories = inventory.GetAllCategories();
+            Logger.LogInformation("Successfully loaded {Count} categories", categories?.Count ?? 0);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading categories");
+            categories = new List<Category>();
+        }
+    }
+}

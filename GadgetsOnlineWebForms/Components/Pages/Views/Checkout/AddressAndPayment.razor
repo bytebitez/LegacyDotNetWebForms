@@ -1,0 +1,171 @@
+@namespace GadgetsOnlineWebForms.Components.Pages.Views.Checkout.AddressAndPayment
+
+@page "/Views/Checkout/AddressAndPayment"
+@rendermode InteractiveServer
+@using GadgetsOnline.Models
+@using GadgetsOnline.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@inject ILogger<AddressAndPayment> Logger
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor HttpContextAccessor
+
+<h2>Address And Payment</h2>
+
+<EditForm Model="@order" OnValidSubmit="@HandleValidSubmit" FormName="AddressAndPaymentForm">
+    <DataAnnotationsValidator />
+    
+    <fieldset>
+        <legend>Shipping Information</legend>
+
+        <div class="editor-label"><label for="FirstName">First Name</label></div>
+        <div class="editor-field">
+            <InputText class="text-box single-line" id="FirstName" @bind-Value="order.FirstName" maxlength="160" />
+            <ValidationMessage For="@(() => order.FirstName)" />
+        </div>
+
+        <div class="editor-label"><label for="LastName">Last Name</label></div>
+        <div class="editor-field">
+            <InputText class="text-box single-line" id="LastName" @bind-Value="order.LastName" maxlength="160" />
+            <ValidationMessage For="@(() => order.LastName)" />
+        </div>
+
+        <div class="editor-label"><label for="Address">Address</label></div>
+        <div class="editor-field">
+            <InputText class="text-box single-line" id="Address" @bind-Value="order.Address" maxlength="70" />
+            <ValidationMessage For="@(() => order.Address)" />
+        </div>
+
+        <div class="editor-label"><label for="City">City</label></div>
+        <div class="editor-field">
+            <InputText class="text-box single-line" id="City" @bind-Value="order.City" maxlength="40" />
+            <ValidationMessage For="@(() => order.City)" />
+        </div>
+
+        <div class="editor-label"><label for="State">State</label></div>
+        <div class="editor-field">
+            <InputText class="text-box single-line" id="State" @bind-Value="order.State" maxlength="40" />
+            <ValidationMessage For="@(() => order.State)" />
+        </div>
+
+        <div class="editor-label"><label for="PostalCode">Postal Code</label></div>
+        <div class="editor-field">
+            <InputText class="text-box single-line" id="PostalCode" @bind-Value="order.PostalCode" maxlength="10" />
+            <ValidationMessage For="@(() => order.PostalCode)" />
+        </div>
+
+        <div class="editor-label"><label for="Country">Country</label></div>
+        <div class="editor-field">
+            <InputText class="text-box single-line" id="Country" @bind-Value="order.Country" maxlength="40" />
+            <ValidationMessage For="@(() => order.Country)" />
+        </div>
+
+        <div class="editor-label"><label for="Phone">Phone</label></div>
+        <div class="editor-field">
+            <InputText class="text-box single-line" id="Phone" @bind-Value="order.Phone" maxlength="24" />
+            <ValidationMessage For="@(() => order.Phone)" />
+        </div>
+
+        <div class="editor-label"><label for="Email">Email Address</label></div>
+        <div class="editor-field">
+            <InputText class="text-box single-line" type="email" id="Email" @bind-Value="order.Email" />
+            <ValidationMessage For="@(() => order.Email)" />
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Payment</legend>
+        <p>We're running a promotion: all music is free with the promo code: "FREE"</p>
+
+        <div class="editor-label"><label for="PromoCode">Promo Code</label></div>
+        <div class="editor-field">
+            <InputText class="text-box single-line" id="PromoCode" @bind-Value="promoCode" />
+        </div>
+    </fieldset>
+
+    <button type="submit">Submit Order</button>
+</EditForm>
+
+@code {
+    [SupplyParameterFromForm]
+    private Order order { get; set; } = new Order();
+
+    private string promoCode { get; set; } = string.Empty;
+
+    private OrderProcessing? orderProcessing;
+
+    protected override void OnInitialized()
+    {
+        if (order.FirstName == null)
+        {
+            order = new Order();
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            order.Username = "Anonymous";
+            order.OrderDate = DateTime.Now;
+
+            var httpContext = HttpContextAccessor.HttpContext;
+            if (httpContext != null)
+            {
+                var cart = GetCart(httpContext);
+                bool result = GetOrderProcess().ProcessOrder(order, cart);
+                
+                NavigationManager.NavigateTo($"/Views/Checkout/Complete?orderId={order.OrderId}", true);
+            }
+            else
+            {
+                Logger.LogError("HttpContext is null");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error processing order");
+            // Invalid - redisplay with errors
+        }
+    }
+
+    private OrderProcessing GetOrderProcess()
+    {
+        if (this.orderProcessing == null)
+        {
+            this.orderProcessing = new OrderProcessing();
+        }
+
+        return this.orderProcessing;
+    }
+
+    private GadgetsOnline.Services.ShoppingCart GetCart(HttpContext context)
+    {
+        var cart = new GadgetsOnline.Services.ShoppingCart();
+        cart.ShoppingCartId = GetCartId(context);
+        return cart;
+    }
+
+    private const string CartSessionKey = "CartId";
+
+    private string GetCartId(HttpContext context)
+    {
+        if (context.Session.GetString(CartSessionKey) == null)
+        {
+            if (!string.IsNullOrWhiteSpace(context.User.Identity?.Name))
+            {
+                context.Session.SetString(CartSessionKey, context.User.Identity.Name);
+            }
+            else
+            {
+                // Generate a new random GUID using System.Guid class
+                Guid tempCartId = Guid.NewGuid();
+
+                // Send tempCartId back to client as a cookie
+                context.Session.SetString(CartSessionKey, tempCartId.ToString());
+            }
+        }
+
+        return context.Session.GetString(CartSessionKey) ?? string.Empty;
+    }
+}
