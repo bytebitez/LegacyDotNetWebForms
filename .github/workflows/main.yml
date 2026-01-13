@@ -1,4 +1,4 @@
-name: Deploy ASP.NET WebForms to Windows EC2 (IIS)
+name: CI - Build ASP.NET WebForms (Testing Only)
 
 on:
   push:
@@ -6,11 +6,11 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout source code
       uses: actions/checkout@v4
 
     - name: Setup MSBuild
@@ -19,14 +19,16 @@ jobs:
     - name: Restore NuGet packages
       run: nuget restore GadgetsOnlineWebForms.sln
 
-    - name: Publish WebForms App
+    - name: Publish WebForms Application
       run: |
-        msbuild GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj ^
-          /p:Configuration=Release ^
-          /p:DeployOnBuild=true ^
-          /p:WebPublishMethod=FileSystem ^
-          /p:PublishDir=publish\
+        msbuild GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishDir=publish\
 
-    - name: Package Published Output
+    - name: Verify publish output
       run: |
-        Compress-Archive -Path publish\* -DestinationPath site.zip
+        dir publish
+
+    - name: Upload publish artifact (for verification)
+      uses: actions/upload-artifact@v4
+      with:
+        name: webforms-publish-output
+        path: publish
