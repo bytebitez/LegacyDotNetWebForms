@@ -19,10 +19,14 @@ jobs:
     - name: Restore NuGet packages
       run: nuget restore GadgetsOnlineWebForms.sln
 
-    - name: Build solution
+    - name: Publish WebForms App
       run: |
-        msbuild GadgetsOnlineWebForms.sln /p:Configuration=Release
+        msbuild GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj ^
+          /p:Configuration=Release ^
+          /p:DeployOnBuild=true ^
+          /p:WebPublishMethod=FileSystem ^
+          /p:PublishDir=publish\
 
-    - name: Create deployment package
+    - name: Package Published Output
       run: |
-        Compress-Archive -Path GadgetsOnlineWebForms\* -DestinationPath site.zip
+        Compress-Archive -Path publish\* -DestinationPath site.zip
