@@ -18,14 +18,23 @@ jobs:
     
     - name: Publish WebForms Application
       run: |
-        msbuild GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishDir=publish\
+        msbuild GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishUrl=publish /p:DeleteExistingFiles=false
     
-    - name: Verify publish output
+    - name: List all directories (diagnostic)
       run: |
-        dir GadgetsOnlineWebForms\publish
+        echo "=== Root directory ==="
+        dir
+        echo "=== Project directory ==="
+        dir GadgetsOnlineWebForms
+        echo "=== Looking for publish folders recursively ==="
+        dir publish -Recurse -ErrorAction SilentlyContinue
     
     - name: Upload publish artifact (for verification)
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: webforms-publish-output
-        path: GadgetsOnlineWebForms\publish
+        path: |
+          GadgetsOnlineWebForms\publish
+          GadgetsOnlineWebForms\bin
+          GadgetsOnlineWebForms\obj\Release\Package
