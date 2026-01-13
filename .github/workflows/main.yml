@@ -1,0 +1,28 @@
+name: Deploy ASP.NET WebForms to Windows EC2 (IIS)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.3
+
+    - name: Restore NuGet packages
+      run: nuget restore GadgetsOnlineWebForms.sln
+
+    - name: Build solution
+      run: |
+        msbuild GadgetsOnlineWebForms.sln /p:Configuration=Release
+
+    - name: Create deployment package
+      run: |
+        Compress-Archive -Path GadgetsOnlineWebForms\* -DestinationPath site.zip
