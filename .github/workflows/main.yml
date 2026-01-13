@@ -1,34 +1,31 @@
 name: CI - Build ASP.NET WebForms (Testing Only)
-
 on:
   push:
     branches:
       - main
-
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
     - name: Checkout source code
       uses: actions/checkout@v4
-
+    
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1.3
-
+    
     - name: Restore NuGet packages
       run: nuget restore GadgetsOnlineWebForms.sln
-
+    
     - name: Publish WebForms Application
       run: |
         msbuild GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishDir=publish\
-
+    
     - name: Verify publish output
       run: |
-        dir publish
-
+        dir GadgetsOnlineWebForms\publish
+    
     - name: Upload publish artifact (for verification)
       uses: actions/upload-artifact@v4
       with:
         name: webforms-publish-output
-        path: publish
+        path: GadgetsOnlineWebForms\publish
