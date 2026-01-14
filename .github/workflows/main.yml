@@ -9,35 +9,36 @@ on:
 jobs:
   build-and-deploy:
     runs-on: [self-hosted, windows]
+
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
       # 2️⃣ Restore NuGet packages
       - name: Restore NuGet packages
-        run: nuget restore "LegacyDotNetWebForms.sln"
+        run: "C:\\Users\\Administrator\\Downloads\\nuget.exe restore C:\\actions-runner\\_work\\LegacyDotNetWebForms\\LegacyDotNetWebForms.sln"
         shell: powershell
 
       # 3️⃣ Build the solution using MSBuild
       - name: Build solution
         run: |
           $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe"
-          & $msbuild "LegacyDotNetWebForms.sln" /p:Configuration=Release
+          & $msbuild "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms.sln" /p:Configuration=Release
         shell: powershell
 
-      # 4️⃣ Copy files to IIS site
+      # 4️⃣ Deploy to IIS (copy files)
       - name: Deploy to IIS
         run: |
           $source = "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms\GadgetsOnlineWebForms\bin\Release"
-          $destination = "C:\inetpub\wwwroot\GadgetsOnlineWebForms" # change if your IIS site path is different
+          $destination = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
 
-          # Ensure destination exists
+          # Create destination if it doesn't exist
           if (!(Test-Path $destination)) {
-              New-Item -ItemType Directory -Path $destination
+              New-Item -ItemType Directory -Path $destination | Out-Null
           }
 
-          # Copy files
+          # Copy all files
           Copy-Item -Path "$source\*" -Destination $destination -Recurse -Force
         shell: powershell
 
@@ -45,6 +46,8 @@ jobs:
       - name: Restart IIS site
         run: |
           Import-Module WebAdministration
-          Stop-Website -Name "GadgetsOnlineWebForms"
+          if ((Get-Website -Name "GadgetsOnlineWebForms").state -eq "Started") {
+              Stop-Website -Name "GadgetsOnlineWebForms"
+          }
           Start-Website -Name "GadgetsOnlineWebForms"
         shell: powershell
