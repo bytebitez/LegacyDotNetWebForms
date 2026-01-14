@@ -1,0 +1,53 @@
+@namespace GadgetsOnlineWebForms.Components.ViewSwitcher
+
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Logging
+@inject ILogger<ViewSwitcher> Logger
+@inject NavigationManager NavigationManager
+
+@if (IsVisible)
+{
+    <div id="viewSwitcher">
+        @CurrentView view | <NavLink href="@SwitchUrl" data-ajax="false">Switch to @AlternateView</NavLink>
+    </div>
+}
+
+@code {
+    private string CurrentView { get; set; } = "Desktop";
+    private string AlternateView { get; set; } = "Mobile";
+    private string SwitchUrl { get; set; } = string.Empty;
+    private bool IsVisible { get; set; } = true;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            // In Blazor, responsive design is typically handled via CSS media queries
+            // This is a simplified version that maintains the structure
+            // You can extend this with JavaScript interop to detect device type if needed
+            
+            // Default to desktop view
+            var isMobile = false;
+            
+            // Determine current view
+            CurrentView = isMobile ? "Mobile" : "Desktop";
+            
+            // Determine alternate view
+            AlternateView = isMobile ? "Desktop" : "Mobile";
+            
+            // Create switch URL
+            var currentUri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+            var returnUrl = Uri.EscapeDataString(currentUri.PathAndQuery);
+            
+            // Construct the switch URL (you may need to adjust this based on your routing setup)
+            SwitchUrl = $"/SwitchView/{AlternateView}?ReturnUrl={returnUrl}";
+            
+            Logger.LogInformation("ViewSwitcher initialized. Current view: {CurrentView}", CurrentView);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error initializing ViewSwitcher");
+            IsVisible = false;
+        }
+    }
+}

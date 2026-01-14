@@ -1,0 +1,52 @@
+@namespace GadgetsOnlineWebForms.Components.Pages.Views.Checkout.Complete
+
+@page "/Views/Checkout/Complete"
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Logging
+@inject NavigationManager NavigationManager
+@inject ILogger<Complete> Logger
+
+@rendermode InteractiveServer
+
+<h2>Checkout Complete</h2>
+
+<p>Thanks for your order! Your order number is: 000-176-54-@Model</p>
+
+<p>
+    You know this is a demo application, right? <br />
+    Nothing is gonna get shipped. Try the <a href="http://www.amazon.com">everything store</a>
+    for real shopping !
+</p>
+
+<p>
+    Go back to <NavLink href="/Views/Home/Index">home page</NavLink>!
+</p>
+
+@code {
+    private int Model;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var queryString = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            int orderId = 0;
+
+            if (!Int32.TryParse(queryString["orderId"], out orderId))
+            {
+                Logger.LogWarning("Invalid or missing orderId in query string. Redirecting to home page.");
+                NavigationManager.NavigateTo("/Views/Home/Index", true);
+                return;
+            }
+
+            Model = orderId;
+            Logger.LogInformation($"Checkout complete page loaded for order ID: {orderId}");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error processing checkout complete page");
+            NavigationManager.NavigateTo("/Views/Home/Index", true);
+        }
+    }
+}

@@ -1,0 +1,30 @@
+
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <meta charset="utf-8" />
+    <title>Mobile Layout</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+</head>
+<body>
+    <div>
+        <h1>Mobile Master Page</h1>
+        <section class="content-wrapper main-content clear-fix">
+            @Body
+        </section>
+        <ViewSwitcher />
+    </div>
+</body>
+</html>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Page_Load logic would go here if there was any
+        // Currently empty as the original Page_Load was empty
+    }
+}
