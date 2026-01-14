@@ -1,13 +1,16 @@
-name: CI - Build ASP.NET WebForms (Testing Only)
+name: Deploy WebForms to IIS
+
 on:
   push:
     branches:
       - main
+
 jobs:
-  build:
-    runs-on: windows-latest
+  deploy:
+    runs-on: [self-hosted, windows]
+    
     steps:
-    - name: Checkout source code
+    - name: Checkout code
       uses: actions/checkout@v4
     
     - name: Setup MSBuild
@@ -16,17 +19,182 @@ jobs:
     - name: Restore NuGet packages
       run: nuget restore GadgetsOnlineWebForms.sln
     
-    - name: Publish WebForms Application
+    - name: Build and Publish
       run: |
-        msbuild GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishUrl=publish /p:DeleteExistingFiles=false
+        msbuild GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj `
+          /p:Configuration=Release `
+          /p:DeployOnBuild=true `
+          /p:WebPublishMethod=FileSystem `
+          /p:PublishUrl=publish `
+          /p:DeleteExistingFiles=false
     
-    - name: Verify publish output
+    - name: Create deployment package
       run: |
-        echo "=== Looking for published files ==="
-        dir GadgetsOnlineWebForms\obj\Release\Package\PackageTmp
+        Compress-Archive -Path "GadgetsOnlineWebForms\obj\Release\Package\PackageTmp\*" `
+          -DestinationPath "deployment.zip" -Force
     
-    - name: Upload publish artifact (for verification)
+    - name: Upload to artifact (for backup)
       uses: actions/upload-artifact@v4
       with:
-        name: webforms-publish-output
-        path: GadgetsOnlineWebForms\obj\Release\Package\PackageTmp
+        name: webforms-package
+        path: deployment.zip
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-south-1
+    
+    - name: Convert package to Base64
+      id: encode
+      run: |
+        $bytes = [System.IO.File]::ReadAllBytes("deployment.zip")
+        $base64 = [System.Convert]::ToBase64String($bytes)
+        
+        # Split into chunks (SSM has 1600 char limit per parameter)
+        $chunkSize = 1500
+        $chunks = @()
+        for ($i = 0; $i -lt $base64.Length; $i += $chunkSize) {
+            $length = [Math]::Min($chunkSize, $base64.Length - $i)
+            $chunks += $base64.Substring($i, $length)
+        }
+        
+        $totalChunks = $chunks.Count
+        echo "TOTAL_CHUNKS=$totalChunks" >> $env:GITHUB_ENV
+        
+        # Save chunks to files
+        for ($i = 0; $i -lt $chunks.Count; $i++) {
+            $chunks[$i] | Out-File -FilePath "chunk_$i.txt" -NoNewline
+        }
+    
+    - name: Deploy to EC2 via SSM
+      run: |
+        # Send deployment script
+        $deployScript = @'
+        $ErrorActionPreference = "Stop"
+        
+        Write-Output "=== Starting Deployment ==="
+        
+        # Deployment paths
+        $tempZip = "C:\Temp\deployment.zip"
+        $deployPath = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
+        $backupPath = "C:\Temp\backup-" + (Get-Date -Format "yyyyMMdd-HHmmss")
+        
+        # Create temp directory
+        New-Item -ItemType Directory -Force -Path "C:\Temp" | Out-Null
+        
+        # The base64 content will be passed as parameter
+        $base64Content = $args[0]
+        
+        Write-Output "Decoding deployment package..."
+        $bytes = [System.Convert]::FromBase64String($base64Content)
+        [System.IO.File]::WriteAllBytes($tempZip, $bytes)
+        
+        Write-Output "Package size: $([Math]::Round($bytes.Length / 1MB, 2)) MB"
+        
+        # Stop IIS App Pool
+        Write-Output "Stopping IIS App Pool..."
+        Import-Module WebAdministration
+        $appPoolName = (Get-Item "IIS:\Sites\GadgetsOnlineWebForms").applicationPool
+        Stop-WebAppPool -Name $appPoolName
+        Start-Sleep -Seconds 3
+        
+        # Backup existing deployment
+        if (Test-Path $deployPath) {
+            Write-Output "Backing up to $backupPath..."
+            Copy-Item -Path $deployPath -Destination $backupPath -Recurse -Force
+        }
+        
+        # Clear deployment directory
+        Write-Output "Clearing deployment directory..."
+        Get-ChildItem -Path $deployPath | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        
+        # Extract new files
+        Write-Output "Extracting files to $deployPath..."
+        Expand-Archive -Path $tempZip -DestinationPath $deployPath -Force
+        
+        # Verify extraction
+        $fileCount = (Get-ChildItem -Path $deployPath -Recurse -File).Count
+        Write-Output "Extracted $fileCount files"
+        
+        # Start IIS App Pool
+        Write-Output "Starting IIS App Pool..."
+        Start-WebAppPool -Name $appPoolName
+        
+        # Cleanup
+        Remove-Item -Path $tempZip -Force
+        
+        Write-Output "=== Deployment Completed Successfully ==="
+        '@
+        
+        # Read all chunks and combine
+        $allChunks = @()
+        for ($i = 0; $i -lt $env:TOTAL_CHUNKS; $i++) {
+            $allChunks += Get-Content "chunk_$i.txt" -Raw
+        }
+        $base64Combined = $allChunks -join ""
+        
+        # Check if package is too large for SSM (limit is ~48KB for parameters)
+        $sizeKB = [Math]::Round($base64Combined.Length / 1024, 2)
+        Write-Output "Package size: $sizeKB KB"
+        
+        if ($sizeKB -gt 45) {
+            Write-Error "Package too large for direct SSM transfer ($sizeKB KB). Maximum is ~45 KB."
+            Write-Output "Please use S3 method or reduce package size."
+            exit 1
+        }
+        
+        # Send command via SSM
+        Write-Output "Deploying to EC2 instance..."
+        $command = aws ssm send-command `
+          --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" `
+          --document-name "AWS-RunPowerShellScript" `
+          --parameters "commands=`"$deployScript`"","executionTimeout=600" `
+          --timeout-seconds 600 `
+          --region ap-south-1 `
+          --output json | ConvertFrom-Json
+        
+        $commandId = $command.Command.CommandId
+        Write-Output "Command ID: $commandId"
+        
+        # Wait for completion
+        Write-Output "Waiting for deployment..."
+        for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep -Seconds 5
+            
+            $invocation = aws ssm get-command-invocation `
+              --command-id $commandId `
+              --instance-id "${{ secrets.EC2_INSTANCE_ID }}" `
+              --region ap-south-1 `
+              --output json | ConvertFrom-Json
+            
+            $status = $invocation.Status
+            Write-Output "Status: $status"
+            
+            if ($status -eq "Success") {
+                Write-Output "`n=== DEPLOYMENT OUTPUT ==="
+                Write-Output $invocation.StandardOutputContent
+                Write-Output "`n✅ Deployment successful!"
+                break
+            }
+            elseif ($status -eq "Failed") {
+                Write-Output "`n❌ Deployment failed!"
+                Write-Output "STDOUT: $($invocation.StandardOutputContent)"
+                Write-Output "STDERR: $($invocation.StandardErrorContent)"
+                exit 1
+            }
+        }
+    
+    - name: Verify deployment
+      if: success()
+      run: |
+        Write-Output "`n======================================"
+        Write-Output "✅ DEPLOYMENT COMPLETED!"
+        Write-Output "======================================"
+        Write-Output "🌐 Website: http://13.233.136.21/GadgetsOnlineWebForms/"
+        Write-Output "📄 Test: http://13.233.136.21/GadgetsOnlineWebForms/Default.aspx"
+        Write-Output "🕐 Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+
+---
+
