@@ -36,12 +36,12 @@ jobs:
           & $msbuildPath "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms.sln" `
             /p:Configuration=Release `
             /p:Platform="Any CPU"
-
-      # 5️⃣ Deploy built files to IIS
+  
       - name: Deploy to IIS
         shell: powershell
         run: |
-          $source = "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms\bin\Release"
+          # Correct path: project folder inside solution
+          $source = "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms\GadgetsOnlineWebForms\bin\Release"
           $destination = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
 
           if (!(Test-Path $destination)) {
