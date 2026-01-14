@@ -1,0 +1,76 @@
+@namespace GadgetsOnlineWebForms.Components.ViewSwitcher
+
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Http
+@using Microsoft.Extensions.Logging
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager NavigationManager
+@inject ILogger<ViewSwitcher> Logger
+
+@if (Visible)
+{
+    <div id="viewSwitcher">
+        @CurrentView view | <NavLink href="@SwitchUrl" data-ajax="false">Switch to @AlternateView</NavLink>
+    </div>
+}
+
+@code {
+    protected string CurrentView { get; private set; } = string.Empty;
+    protected string AlternateView { get; private set; } = string.Empty;
+    protected string SwitchUrl { get; private set; } = string.Empty;
+    protected bool Visible { get; private set; } = true;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var httpContext = HttpContextAccessor.HttpContext;
+            if (httpContext == null)
+            {
+                Logger.LogWarning("HttpContext is null in ViewSwitcher");
+                Visible = false;
+                return;
+            }
+
+            // Determine current view based on user agent
+            var isMobile = IsMobileDevice(httpContext);
+            CurrentView = isMobile ? "Mobile" : "Desktop";
+
+            // Determine alternate view
+            AlternateView = isMobile ? "Desktop" : "Mobile";
+
+            // Create switch URL
+            var returnUrl = httpContext.Request.Path + httpContext.Request.QueryString;
+            SwitchUrl = $"/SwitchView?view={AlternateView}&returnUrl={Uri.EscapeDataString(returnUrl)}";
+
+            Logger.LogInformation("ViewSwitcher initialized. Current view: {CurrentView}, Alternate view: {AlternateView}", CurrentView, AlternateView);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error initializing ViewSwitcher");
+            Visible = false;
+        }
+    }
+
+    private bool IsMobileDevice(HttpContext context)
+    {
+        try
+        {
+            var userAgent = context.Request.Headers["User-Agent"].ToString().ToLower();
+            
+            // Check for common mobile device indicators
+            var mobileKeywords = new[] 
+            { 
+                "mobile", "android", "iphone", "ipad", "ipod", 
+                "blackberry", "windows phone", "webos", "opera mini" 
+            };
+
+            return mobileKeywords.Any(keyword => userAgent.Contains(keyword));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error detecting mobile device");
+            return false;
+        }
+    }
+}

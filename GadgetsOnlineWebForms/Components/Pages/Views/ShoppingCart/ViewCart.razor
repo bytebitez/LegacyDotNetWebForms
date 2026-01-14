@@ -1,0 +1,197 @@
+@namespace GadgetsOnlineWebForms.Components.Pages.Views.ShoppingCart.ViewCart
+
+@page "/Views/ShoppingCart/ViewCart"
+@rendermode InteractiveServer
+@using GadgetsOnline.Services
+@using GadgetsOnlineWebForms.ViewModels
+@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager NavigationManager
+@inject ILogger<ViewCart> Logger
+
+<h3>
+    <em>Review</em> your cart:
+</h3>
+<p class="button">
+    <NavLink href="/Views/Checkout/AddressAndPayment">Checkout >></NavLink>
+</p>
+<div id="update-message">
+    @updateMessage
+</div>
+<table>
+    <tr>
+        <th>
+            Product
+        </th>
+        <th>
+            Price (each)
+        </th>
+        <th>
+            Quantity
+        </th>
+        <th></th>
+    </tr>
+    @if (Model != null && Model.CartItems != null)
+    {
+        @foreach (var item in Model.CartItems)
+        {
+            var productUrl = "/Views/Store/Details?productId=" + item.ProductId;
+            <tr id="row-@item.RecordId">
+                <td>
+                    <NavLink href="@productUrl">"@item.Product.Name"</NavLink>
+                </td>
+                <td>
+                    @item.Product.Price
+                </td>
+                <td id="item-count-@item.RecordId">
+                    @item.Count
+                </td>
+                <td>
+                    <button @onclick="() => RemoveFromCartClick(item.ProductId)" class="RemoveLink" style="background:none; border:none; color:blue; text-decoration:underline; cursor:pointer;">Remove from cart</button>
+                </td>
+            </tr>
+        }
+    }
+    <tr>
+        <td>
+            Total
+        </td>
+        <td>
+        </td>
+        <td>
+        </td>
+        <td id="cart-total">
+            @(Model?.CartTotal ?? 0)
+        </td>
+    </tr>
+</table>
+
+@code {
+    protected ShoppingCartViewModel Model;
+    private string updateMessage = string.Empty;
+    private const string CartSessionKey = "CartId";
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            
+            int productId = 0;
+            if (Int32.TryParse(query["addToCart"], out productId))
+            {
+                AddToCart(productId);
+            }
+            else if (Int32.TryParse(query["removeFromCart"], out productId))
+            {
+                RemoveFromCart(productId);
+            }
+
+            var cart = GetCart();
+            // Set up our ViewModel
+            Model = new ShoppingCartViewModel 
+            { 
+                CartItems = cart.GetCartItems(), 
+                CartTotal = cart.GetTotal() 
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error initializing ViewCart");
+            Model = new ShoppingCartViewModel 
+            { 
+                CartItems = new List<GadgetsOnline.Models.Cart>(), 
+                CartTotal = 0 
+            };
+        }
+    }
+
+    public void AddToCart(int id)
+    {
+        try
+        {
+            var cart = GetCart();
+            cart.AddToCart(id);
+            Logger.LogInformation($"Product {id} added to cart");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error adding product {id} to cart");
+        }
+    }
+
+    public void RemoveFromCart(int id)
+    {
+        try
+        {
+            var cart = GetCart();
+            int itemCount = cart.RemoveFromCart(id);
+            var inventory = new Inventory();
+            var productName = inventory.GetProductNameById(id);
+            
+            // Display the confirmation message
+            updateMessage = System.Web.HttpUtility.HtmlEncode(productName) + " has been removed from your shopping cart.";
+            
+            var results = new ShoppingCartRemoveViewModel 
+            { 
+                Message = updateMessage,
+                CartTotal = cart.GetTotal(), 
+                CartCount = cart.GetCount(), 
+                ItemCount = itemCount, 
+                DeleteId = id 
+            };
+            
+            Logger.LogInformation($"Product {id} removed from cart");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error removing product {id} from cart");
+        }
+    }
+
+    private void RemoveFromCartClick(int productId)
+    {
+        RemoveFromCart(productId);
+        
+        // Refresh the cart
+        var cart = GetCart();
+        Model = new ShoppingCartViewModel 
+        { 
+            CartItems = cart.GetCartItems(), 
+            CartTotal = cart.GetTotal() 
+        };
+        
+        StateHasChanged();
+    }
+
+    private GadgetsOnline.Services.ShoppingCart GetCart()
+    {
+        var cart = new GadgetsOnline.Services.ShoppingCart();
+        cart.ShoppingCartId = GetCartId();
+        return cart;
+    }
+
+    private string GetCartId()
+    {
+        var httpContext = HttpContextAccessor.HttpContext;
+        
+        if (httpContext.Session.GetString(CartSessionKey) == null)
+        {
+            if (!string.IsNullOrWhiteSpace(httpContext.User.Identity.Name))
+            {
+                httpContext.Session.SetString(CartSessionKey, httpContext.User.Identity.Name);
+            }
+            else
+            {
+                // Generate a new random GUID using System.Guid class
+                Guid tempCartId = Guid.NewGuid();
+
+                // Send tempCartId back to client as a session value
+                httpContext.Session.SetString(CartSessionKey, tempCartId.ToString());
+            }
+        }
+
+        return httpContext.Session.GetString(CartSessionKey);
+    }
+}
