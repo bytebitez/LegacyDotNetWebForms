@@ -1,0 +1,66 @@
+@namespace GadgetsOnlineWebForms.Components.Pages.Views.Store.Browse
+
+@page "/Views/Store/Browse"
+@rendermode InteractiveServer
+@using GadgetsOnline.Models
+@using GadgetsOnline.Services
+@using Microsoft.AspNetCore.Components
+@inject ILogger<Browse> Logger
+@inject NavigationManager NavigationManager
+
+<div class="genre">
+    <ul id="album-list">
+        @if (Products != null && Products.Any())
+        {
+            @foreach (var product in Products)
+            {
+                string productUrl = $"/Views/Store/Details?productId={product.ProductId}";
+                <li>
+                    <NavLink href="@productUrl">
+                        <img alt="@product.Name" src="@product.ProductArtUrl" />
+                        <span>@product.Name</span>
+                    </NavLink>
+                </li>
+            }
+        }
+    </ul>
+</div>
+
+@code {
+    private List<Product> Products;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            string categoryIdParam = query["categoryId"];
+
+            int categoryId = 0;
+            if (!Int32.TryParse(categoryIdParam, out categoryId))
+            {
+                Logger.LogWarning("Invalid categoryId parameter. Redirecting to home page.");
+                NavigationManager.NavigateTo("/Views/Home/Index");
+                return;
+            }
+
+            var inventory = new Inventory();
+            Products = inventory.GetAllProductsInCategory(categoryId);
+
+            if (Products == null)
+            {
+                Logger.LogWarning("No products found for categoryId: {CategoryId}. Redirecting to home page.", categoryId);
+                NavigationManager.NavigateTo("/Views/Home/Index");
+                return;
+            }
+
+            Logger.LogInformation("Successfully loaded {Count} products for categoryId: {CategoryId}", Products.Count, categoryId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error occurred while loading products.");
+            NavigationManager.NavigateTo("/Views/Home/Index");
+        }
+    }
+}

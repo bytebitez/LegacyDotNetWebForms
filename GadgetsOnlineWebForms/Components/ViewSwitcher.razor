@@ -1,0 +1,68 @@
+@namespace GadgetsOnlineWebForms.Components.ViewSwitcher
+
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Logging
+@inject ILogger<ViewSwitcher> Logger
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<div id="viewSwitcher">
+    @CurrentView view | <NavLink href="@SwitchUrl" data-ajax="false">Switch to @AlternateView</NavLink>
+</div>
+
+@code {
+    protected string CurrentView { get; private set; } = "Desktop";
+    protected string AlternateView { get; private set; } = "Mobile";
+    protected string SwitchUrl { get; private set; } = "#";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await DetermineViewType();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error determining view type in ViewSwitcher");
+        }
+    }
+
+    private async Task DetermineViewType()
+    {
+        try
+        {
+            // Check if mobile view from user agent or viewport
+            var isMobile = await JSRuntime.InvokeAsync<bool>("isMobileDevice");
+            
+            CurrentView = isMobile ? "Mobile" : "Desktop";
+            AlternateView = isMobile ? "Desktop" : "Mobile";
+            
+            // Create switch URL with return URL
+            var currentUrl = NavigationManager.Uri;
+            var returnUrl = Uri.EscapeDataString(new Uri(currentUrl).PathAndQuery);
+            SwitchUrl = $"/SwitchView?view={AlternateView}&ReturnUrl={returnUrl}";
+            
+            Logger.LogInformation("View switcher initialized. Current view: {CurrentView}", CurrentView);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not determine mobile device status, defaulting to Desktop view");
+            CurrentView = "Desktop";
+            AlternateView = "Mobile";
+            SwitchUrl = "#";
+        }
+    }
+}
+
+<script>
+    window.isMobileDevice = function() {
+        // Check if mobile device based on user agent
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
+        
+        // Also check viewport width
+        const isMobileWidth = window.innerWidth <= 768;
+        
+        return mobileRegex.test(userAgent.toLowerCase()) || isMobileWidth;
+    };
+</script>

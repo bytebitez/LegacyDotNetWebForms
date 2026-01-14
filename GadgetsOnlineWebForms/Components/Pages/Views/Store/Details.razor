@@ -1,0 +1,73 @@
+@namespace GadgetsOnlineWebForms.Components.Pages.Views.Store.Details
+
+@page "/Views/Store/Details"
+@using GadgetsOnline.Models
+@using GadgetsOnline.Services
+@using Microsoft.AspNetCore.Components
+@rendermode InteractiveServer
+
+<PageTitle>Gadget - @(Model?.Name ?? "")</PageTitle>
+
+<h2>@Model?.Name</h2>
+
+<p>
+    <img alt="@Model?.Name" src="@Model?.ProductArtUrl" />
+</p>
+
+<div id="album-details">
+    <p>
+        <em>Type:</em>
+        @Model?.Category?.Name
+    </p>
+    <p>
+        <em>Description:</em>
+        @Model?.Category?.Description
+    </p>
+    <p>
+        <em>Price:</em>$
+        @(Model != null ? Model.Price.ToString("F") : "")
+    </p>
+    <p class="button">
+        <NavLink href="@($"/Views/ShoppingCart/ViewCart?addToCart={Model?.ProductId}")">Add to cart</NavLink>
+    </p>
+</div>
+
+@code {
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = default!;
+
+    [Inject]
+    private ILogger<Details> Logger { get; set; } = default!;
+
+    [SupplyParameterFromQuery(Name = "productId")]
+    public int? ProductId { get; set; }
+
+    protected Product? Model { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (!ProductId.HasValue || ProductId.Value == 0)
+        {
+            Logger.LogWarning("Invalid or missing productId parameter");
+            NavigationManager.NavigateTo("/Views/Home/Index");
+            return;
+        }
+
+        try
+        {
+            var inventory = new Inventory();
+            Model = inventory.GetProductById(ProductId.Value);
+
+            if (Model == null)
+            {
+                Logger.LogWarning("Product not found with ID: {ProductId}", ProductId.Value);
+                NavigationManager.NavigateTo("/Views/Home/Index");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading product details for ID: {ProductId}", ProductId.Value);
+            NavigationManager.NavigateTo("/Views/Home/Index");
+        }
+    }
+}
