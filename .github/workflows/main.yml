@@ -1,4 +1,4 @@
-name: Deploy ASP.NET WebForms to IIS
+name: Build and Deploy ASP.NET WebForms to IIS
 
 on:
   push:
@@ -6,53 +6,46 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  build-deploy:
     runs-on: self-hosted
+
     steps:
+      # 1️⃣ Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # 1️⃣ Checkout code
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      # 2️⃣ Show workspace for debugging
+      - name: Show workspace
+        shell: powershell
+        run: |
+          Write-Host "GITHUB_WORKSPACE = $env:GITHUB_WORKSPACE"
+          dir $env:GITHUB_WORKSPACE
 
-    # 2️⃣ Debug workspace (VERY IMPORTANT)
-    - name: Debug workspace
-      shell: powershell
-      run: |
-        Write-Host "GITHUB_WORKSPACE = $env:GITHUB_WORKSPACE"
-        Get-ChildItem $env:GITHUB_WORKSPACE
+      # 3️⃣ Restore NuGet packages
+      - name: Restore NuGet packages
+        shell: powershell
+        run: |
+          $nuget = "C:\actions-runner\nuget.exe"
+          & $nuget restore "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms.sln"
 
-    # 3️⃣ Restore NuGet packages
-    - name: NuGet Restore
-      shell: powershell
-      run: |
-        & "C:\actions-runner\nuget.exe" restore `
-          "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms.sln"
+      # 4️⃣ Build solution using correct MSBuild path
+      - name: Build solution
+        shell: powershell
+        run: |
+          $msbuildPath = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
+          & $msbuildPath "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms.sln" `
+            /p:Configuration=Release `
+            /p:Platform="Any CPU"
 
-    # 4️⃣ Build solution (WebForms)
-    - name: Build solution
-      shell: powershell
-      run: |
-        & "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe" `
-          "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms.sln" `
-          /p:Configuration=Release `
-          /p:Platform="Any CPU" `
-          /t:Build
+      # 5️⃣ Deploy built files to IIS
+      - name: Deploy to IIS
+        shell: powershell
+        run: |
+          $source = "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms\bin\Release"
+          $destination = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
 
-    # 5️⃣ Deploy to IIS (WebForms correct way)
-    - name: Deploy to IIS
-      shell: powershell
-      run: |
-        $source = "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms"
-        $destination = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
+          if (!(Test-Path $destination)) {
+            New-Item -ItemType Directory -Path $destination
+          }
 
-        if (!(Test-Path $destination)) {
-          New-Item -ItemType Directory -Path $destination | Out-Null
-        }
-
-        robocopy $source $destination `
-          /E /XO `
-          /XD ".vs" "obj" ".git" `
-          /XF "*.user" "*.suo" `
-          /NFL /NDL /NJH /NJS /NC /NS
-
-        if ($LASTEXITCODE -ge 8) { exit 1 }
+          Copy-Item "$source\*" $destination -Recurse -Force
