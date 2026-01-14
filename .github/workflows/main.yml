@@ -1,43 +1,51 @@
-name: Deploy WebForms to IIS (Windows EC2)
+name: Deploy WebForms to IIS
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch: # allows manual trigger
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: [self-hosted, windows]
-
     steps:
-    - name: Checkout source code
-      uses: actions/checkout@v4
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Build & Deploy WebForms to IIS
-      shell: powershell
-      run: |
-        $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe"
-        $project = "GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj"
-        $deployPath = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
+      # 2️⃣ Restore NuGet packages
+      - name: Restore NuGet packages
+        run: |
+          nuget restore "LegacyDotNetWebForms.sln"
+        shell: pwsh
 
-        if (!(Test-Path $msbuild)) {
-          Write-Error "MSBuild not found"
-          exit 1
-        }
+      # 3️⃣ Build the solution using MSBuild
+      - name: Build solution
+        run: |
+          $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe"
+          & $msbuild "LegacyDotNetWebForms.sln" /p:Configuration=Release
+        shell: pwsh
 
-        Write-Output "Using MSBuild: $msbuild"
+      # 4️⃣ Copy files to IIS site
+      - name: Deploy to IIS
+        run: |
+          $source = "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms\GadgetsOnlineWebForms\bin\Release"
+          $destination = "C:\inetpub\wwwroot\GadgetsOnlineWebForms" # change if your site is different
+          
+          # Ensure destination exists
+          if (!(Test-Path $destination)) {
+              New-Item -ItemType Directory -Path $destination
+          }
 
-        & "$msbuild" "$project" `
-          /p:Configuration=Release `
-          /p:RestorePackages=true `
-          /p:DeployOnBuild=true `
-          /p:WebPublishMethod=FileSystem `
-          /p:PublishUrl="$deployPath" `
-          /p:DeleteExistingFiles=false
+          # Copy files
+          Copy-Item -Path "$source\*" -Destination $destination -Recurse -Force
+        shell: pwsh
 
-        Write-Output "✅ Build & deployment completed"
-
-    - name: Verify IIS files
-      shell: powershell
-      run: |
-        Get-ChildItem "C:\inetpub\wwwroot\GadgetsOnlineWebForms" -Recurse | Select-Object -First 20
+      # 5️⃣ Optional: restart IIS site (if needed)
+      - name: Restart IIS site
+        run: |
+          Import-Module WebAdministration
+          Stop-Website -Name "GadgetsOnlineWebForms"
+          Start-Website -Name "GadgetsOnlineWebForms"
+        shell: pwsh
