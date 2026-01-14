@@ -11,18 +11,18 @@ jobs:
     runs-on: [self-hosted, windows]
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout source
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2️⃣ Restore NuGet packages (FIXED)
+      # 2️⃣ Restore NuGet packages
       - name: Restore NuGet packages
         shell: powershell
         run: |
-          & "C:\Users\Administrator\Downloads\nuget.exe" restore `
+          & "C:\actions-runner\nuget.exe" restore `
             "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms.sln"
 
-      # 3️⃣ Build solution
+      # 3️⃣ Build using MSBuild
       - name: Build solution
         shell: powershell
         run: |
@@ -37,20 +37,18 @@ jobs:
         shell: powershell
         run: |
           $source = "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms\GadgetsOnlineWebForms\bin\Release"
-          $destination = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
+          $dest   = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
 
-          if (!(Test-Path $destination)) {
-            New-Item -ItemType Directory -Path $destination | Out-Null
+          if (!(Test-Path $dest)) {
+            New-Item -ItemType Directory -Path $dest | Out-Null
           }
 
-          Copy-Item "$source\*" $destination -Recurse -Force
+          Copy-Item "$source\*" $dest -Recurse -Force
 
       # 5️⃣ Restart IIS site
-      - name: Restart IIS Website
+      - name: Restart IIS
         shell: powershell
         run: |
           Import-Module WebAdministration
-          if ((Get-Website -Name "GadgetsOnlineWebForms").State -eq "Started") {
-            Stop-Website -Name "GadgetsOnlineWebForms"
-          }
+          Stop-Website -Name "GadgetsOnlineWebForms" -ErrorAction SilentlyContinue
           Start-Website -Name "GadgetsOnlineWebForms"
