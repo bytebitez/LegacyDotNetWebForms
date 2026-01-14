@@ -13,15 +13,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Restore NuGet packages
-      run: |
-        nuget restore GadgetsOnlineWebForms.sln
-
     - name: Build and Publish WebForms
       run: |
         "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" `
           GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj `
           /p:Configuration=Release `
+          /p:RestorePackages=true `
           /p:DeployOnBuild=true `
           /p:WebPublishMethod=FileSystem `
           /p:PublishUrl=C:\inetpub\wwwroot\GadgetsOnlineWebForms `
@@ -29,4 +26,5 @@ jobs:
 
     - name: Verify deployment files
       run: |
+        Write-Output "IIS Folder Contents:"
         ls C:\inetpub\wwwroot\GadgetsOnlineWebForms
