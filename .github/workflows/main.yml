@@ -11,23 +11,23 @@ jobs:
     runs-on: [self-hosted, windows]
 
     steps:
-      # 1️⃣ Checkout source code
+      # 1️⃣ Checkout source
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Debug workspace (KEEP for now – very useful)
+      # 2️⃣ Debug workspace (keep until pipeline is stable)
       - name: Debug workspace
         shell: powershell
         run: |
           Write-Host "GITHUB_WORKSPACE = $env:GITHUB_WORKSPACE"
           Get-ChildItem $env:GITHUB_WORKSPACE
 
-      # 3️⃣ Restore NuGet packages
+      # 3️⃣ Restore NuGet packages (FIXED sln name)
       - name: Restore NuGet packages
         shell: powershell
         run: |
           & "C:\actions-runner\nuget.exe" restore `
-            "$env:GITHUB_WORKSPACE\LegacyDotNetWebForms.sln"
+            "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms.sln"
 
       # 4️⃣ Build solution using MSBuild
       - name: Build solution
@@ -35,7 +35,7 @@ jobs:
         run: |
           $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe"
           & $msbuild `
-            "$env:GITHUB_WORKSPACE\LegacyDotNetWebForms.sln" `
+            "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms.sln" `
             /p:Configuration=Release `
             /p:DeployOnBuild=true
 
@@ -52,7 +52,7 @@ jobs:
 
           Copy-Item "$source\*" $destination -Recurse -Force
 
-      # 6️⃣ Restart IIS Website
+      # 6️⃣ Restart IIS website
       - name: Restart IIS Website
         shell: powershell
         run: |
