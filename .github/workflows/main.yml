@@ -11,42 +11,49 @@ jobs:
     runs-on: [self-hosted, windows]
 
     steps:
-      # 1️⃣ Checkout source
+      # 1️⃣ Checkout source code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Restore NuGet packages
+      # 2️⃣ Debug workspace (KEEP for now – very useful)
+      - name: Debug workspace
+        shell: powershell
+        run: |
+          Write-Host "GITHUB_WORKSPACE = $env:GITHUB_WORKSPACE"
+          Get-ChildItem $env:GITHUB_WORKSPACE
+
+      # 3️⃣ Restore NuGet packages
       - name: Restore NuGet packages
         shell: powershell
         run: |
           & "C:\actions-runner\nuget.exe" restore `
-            "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms.sln"
+            "$env:GITHUB_WORKSPACE\LegacyDotNetWebForms.sln"
 
-      # 3️⃣ Build using MSBuild
+      # 4️⃣ Build solution using MSBuild
       - name: Build solution
         shell: powershell
         run: |
           $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe"
           & $msbuild `
-            "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms.sln" `
+            "$env:GITHUB_WORKSPACE\LegacyDotNetWebForms.sln" `
             /p:Configuration=Release `
             /p:DeployOnBuild=true
 
-      # 4️⃣ Deploy to IIS
+      # 5️⃣ Deploy to IIS
       - name: Deploy to IIS
         shell: powershell
         run: |
-          $source = "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms\GadgetsOnlineWebForms\bin\Release"
-          $dest   = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
+          $source = "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms\bin\Release"
+          $destination = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
 
-          if (!(Test-Path $dest)) {
-            New-Item -ItemType Directory -Path $dest | Out-Null
+          if (!(Test-Path $destination)) {
+            New-Item -ItemType Directory -Path $destination | Out-Null
           }
 
-          Copy-Item "$source\*" $dest -Recurse -Force
+          Copy-Item "$source\*" $destination -Recurse -Force
 
-      # 5️⃣ Restart IIS site
-      - name: Restart IIS
+      # 6️⃣ Restart IIS Website
+      - name: Restart IIS Website
         shell: powershell
         run: |
           Import-Module WebAdministration
