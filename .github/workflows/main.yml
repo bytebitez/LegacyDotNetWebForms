@@ -4,50 +4,53 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # allows manual trigger
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: [self-hosted, windows]
 
     steps:
-      # 1️⃣ Checkout repository
+      # 1️⃣ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Restore NuGet packages
+      # 2️⃣ Restore NuGet packages (FIXED)
       - name: Restore NuGet packages
-        run: "C:\\Users\\Administrator\\Downloads\\nuget.exe restore C:\\actions-runner\\_work\\LegacyDotNetWebForms\\LegacyDotNetWebForms.sln"
         shell: powershell
+        run: |
+          & "C:\Users\Administrator\Downloads\nuget.exe" restore `
+            "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms.sln"
 
-      # 3️⃣ Build the solution using MSBuild
+      # 3️⃣ Build solution
       - name: Build solution
+        shell: powershell
         run: |
           $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe"
-          & $msbuild "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms.sln" /p:Configuration=Release
-        shell: powershell
+          & $msbuild `
+            "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms.sln" `
+            /p:Configuration=Release `
+            /p:DeployOnBuild=true
 
-      # 4️⃣ Deploy to IIS (copy files)
+      # 4️⃣ Deploy to IIS
       - name: Deploy to IIS
+        shell: powershell
         run: |
           $source = "C:\actions-runner\_work\LegacyDotNetWebForms\LegacyDotNetWebForms\GadgetsOnlineWebForms\bin\Release"
           $destination = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
 
-          # Create destination if it doesn't exist
           if (!(Test-Path $destination)) {
-              New-Item -ItemType Directory -Path $destination | Out-Null
+            New-Item -ItemType Directory -Path $destination | Out-Null
           }
 
-          # Copy all files
-          Copy-Item -Path "$source\*" -Destination $destination -Recurse -Force
-        shell: powershell
+          Copy-Item "$source\*" $destination -Recurse -Force
 
-      # 5️⃣ Restart IIS site to apply changes
-      - name: Restart IIS site
+      # 5️⃣ Restart IIS site
+      - name: Restart IIS Website
+        shell: powershell
         run: |
           Import-Module WebAdministration
-          if ((Get-Website -Name "GadgetsOnlineWebForms").state -eq "Started") {
-              Stop-Website -Name "GadgetsOnlineWebForms"
+          if ((Get-Website -Name "GadgetsOnlineWebForms").State -eq "Started") {
+            Stop-Website -Name "GadgetsOnlineWebForms"
           }
           Start-Website -Name "GadgetsOnlineWebForms"
-        shell: powershell
