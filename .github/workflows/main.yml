@@ -1,4 +1,4 @@
-name: Deploy WebForms to IIS
+name: Deploy WebForms to IIS (Windows EC2)
 
 on:
   push:
@@ -10,16 +10,34 @@ jobs:
     runs-on: [self-hosted, windows]
 
     steps:
-    - name: Checkout code
+    - name: Checkout source code
       uses: actions/checkout@v4
 
-    - name: Build and Publish WebForms
+    - name: Build & Deploy WebForms to IIS
       shell: powershell
       run: |
-        & "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" "GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj" /p:Configuration=Release /p:RestorePackages=true /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishUrl="C:\inetpub\wwwroot\GadgetsOnlineWebForms" /p:DeleteExistingFiles=false
+        $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe"
+        $project = "GadgetsOnlineWebForms\GadgetsOnlineWebForms.csproj"
+        $deployPath = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
 
-    - name: Verify deployment
+        if (!(Test-Path $msbuild)) {
+          Write-Error "MSBuild not found"
+          exit 1
+        }
+
+        Write-Output "Using MSBuild: $msbuild"
+
+        & "$msbuild" "$project" `
+          /p:Configuration=Release `
+          /p:RestorePackages=true `
+          /p:DeployOnBuild=true `
+          /p:WebPublishMethod=FileSystem `
+          /p:PublishUrl="$deployPath" `
+          /p:DeleteExistingFiles=false
+
+        Write-Output "✅ Build & deployment completed"
+
+    - name: Verify IIS files
       shell: powershell
       run: |
-        Write-Output "📂 Deployed files:"
-        Get-ChildItem "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
+        Get-ChildItem "C:\inetpub\wwwroot\GadgetsOnlineWebForms" -Recurse | Select-Object -First 20
