@@ -1,40 +1,29 @@
-
 @inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
+@using GadgetsOnlineWebForms.Components.Views.Store
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link href="/favicon.ico" rel="shortcut icon" type="image/x-icon" />
-    <base href="/" />
-</head>
-<body>
-    <div id="header" style="margin-top:10px">
-        <h1 class="font-italic">
-            <a href="/">
-                Welcome to Gadgets Online!
-            </a>
-        </h1>
+<div id="header" style="margin-top:10px">
+    <h1 class="font-italic">
+        <NavLink href="/">
+            Welcome to Gadgets Online!
+        </NavLink>
+    </h1>
 
-        <ul id="navlist">
-            <li><a href="/home" id="current">Home</a></li>
-            <li><a href="/shoppingcart">ShoppingCart</a></li>
-        </ul>
-    </div>
+    <ul id="navlist">
+        <li><NavLink href="/">Home</NavLink></li>
+        <li><NavLink href="/Views/ShoppingCart/ViewCart">ShoppingCart</NavLink></li>
+    </ul>
+</div>
 
-    <CategoryMenu />
+<CategoryMenu />
 
-    <div id="main">
-        @Body
-    </div>
+<div id="main">
+    @Body
+</div>
 
-    <div id="footer">
-        <a href="https://aws.amazon.com/developer/language/net/"> AWS &#10084;&#65039; ASP.NET </a>
-    </div>
-</body>
-</html>
+<div id="footer">
+    <a href="https://aws.amazon.com/developer/language/net/" target="_blank"> AWS &#10084;&#65039; ASP.NET </a>
+</div>
 
 @code {
     protected override void OnInitialized()

@@ -5,10 +5,12 @@
 @using GadgetsOnline.Models
 @using GadgetsOnline.Services
 @using Microsoft.AspNetCore.Components
+@implements IDisposable
 @inject ILogger<Browse> Logger
 @inject NavigationManager NavigationManager
 
 <div class="genre">
+    <h3>@CategoryName</h3>
     <ul id="album-list">
         @if (Products != null && Products.Any())
         {
@@ -23,13 +25,35 @@
                 </li>
             }
         }
+        else
+        {
+            <li>No products found in this category.</li>
+        }
     </ul>
 </div>
 
 @code {
-    private List<Product> Products;
+    private List<Product> Products = new List<Product>();
+    private string CategoryName = string.Empty;
 
     protected override void OnInitialized()
+    {
+        LoadProducts();
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        LoadProducts();
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        LoadProducts();
+        StateHasChanged();
+    }
+
+    private void LoadProducts()
     {
         try
         {
@@ -40,18 +64,23 @@
             int categoryId = 0;
             if (!Int32.TryParse(categoryIdStr, out categoryId))
             {
-                Logger.LogWarning("Invalid categoryId parameter, redirecting to home page");
-                NavigationManager.NavigateTo("/Views/Home/Index");
+                Logger.LogWarning("Invalid categoryId parameter");
+                Products = new List<Product>();
                 return;
             }
 
             var inventory = new Inventory();
             Products = inventory.GetAllProductsInCategory(categoryId);
+            
+            // Get category name
+            var categories = inventory.GetAllCategories();
+            var category = categories?.FirstOrDefault(c => c.CategoryId == categoryId);
+            CategoryName = category?.Name ?? "Products";
 
             if (Products == null)
             {
-                Logger.LogWarning("No products found for categoryId: {CategoryId}, redirecting to home page", categoryId);
-                NavigationManager.NavigateTo("/Views/Home/Index");
+                Logger.LogWarning("No products found for categoryId: {CategoryId}", categoryId);
+                Products = new List<Product>();
                 return;
             }
 
@@ -60,7 +89,12 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error loading products in Browse page");
-            NavigationManager.NavigateTo("/Views/Home/Index");
+            Products = new List<Product>();
         }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }

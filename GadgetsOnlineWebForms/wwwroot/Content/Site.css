@@ -325,3 +325,51 @@ tr:hover
 {
 	background-color: #fff;
 }
+
+
+/* Blazor Input Components */
+input.text-box, input.single-line, input[type="text"], input[type="email"], input[type="password"]
+{
+	border: 1px solid #8A8575;
+	width: 300px;
+	padding: 5px;
+	font-size: 14px;
+	font-family: Verdana;
+}
+
+.editor-label
+{
+	font-weight: bold;
+	margin-top: 10px;
+	margin-bottom: 5px;
+}
+
+.editor-field input
+{
+	display: block;
+	margin-bottom: 5px;
+}
+
+/* Ensure validation messages are visible */
+.validation-message
+{
+	color: #ff0000;
+	font-size: 12px;
+	display: block;
+	margin-top: 3px;
+}
+
+
+/* Header logo link styling */
+#header h1 a, #header h1 a:visited
+{
+	color: #5E5B54;
+	text-decoration: none;
+	display: block;
+	cursor: pointer;
+}
+
+#header h1 a:hover
+{
+	color: #F6855E;
+}
