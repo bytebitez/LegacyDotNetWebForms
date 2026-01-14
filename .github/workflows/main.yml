@@ -14,38 +14,46 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Show workspace for debugging
-      - name: Show workspace
-        shell: powershell
-        run: |
-          Write-Host "GITHUB_WORKSPACE = $env:GITHUB_WORKSPACE"
-          dir $env:GITHUB_WORKSPACE
-
-      # 3️⃣ Restore NuGet packages
+      # 2️⃣ Restore NuGet packages
       - name: Restore NuGet packages
         shell: powershell
         run: |
           $nuget = "C:\actions-runner\nuget.exe"
           & $nuget restore "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms.sln"
 
-      # 4️⃣ Build solution using correct MSBuild path
+      # 3️⃣ Build solution with MSBuild and force output to artifacts folder
       - name: Build solution
         shell: powershell
         run: |
           $msbuildPath = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
-          & $msbuildPath "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms.sln" `
+          $solution = "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms.sln"
+          $outDir = "$env:GITHUB_WORKSPACE\artifacts\Release\"
+          if (!(Test-Path $outDir)) {
+            New-Item -ItemType Directory -Path $outDir -Force
+          }
+          & $msbuildPath $solution `
             /p:Configuration=Release `
-            /p:Platform="Any CPU"
-  
+            /p:Platform="Any CPU" `
+            /p:OutDir=$outDir
+
+      # 4️⃣ Deploy built files to IIS
       - name: Deploy to IIS
         shell: powershell
         run: |
-          # Correct path: project folder inside solution
-          $source = "$env:GITHUB_WORKSPACE\GadgetsOnlineWebForms\GadgetsOnlineWebForms\bin\Release"
+          $source = "$env:GITHUB_WORKSPACE\artifacts\Release"
           $destination = "C:\inetpub\wwwroot\GadgetsOnlineWebForms"
 
           if (!(Test-Path $destination)) {
-            New-Item -ItemType Directory -Path $destination
+            New-Item -ItemType Directory -Path $destination -Force
           }
 
           Copy-Item "$source\*" $destination -Recurse -Force
+
+      # 5️⃣ Optional: recycle IIS app pool (replace "DefaultAppPool" with your pool name)
+      - name: Recycle IIS App Pool
+        shell: powershell
+        run: |
+          Import-Module WebAdministration
+          if (Test-Path "IIS:\AppPools\DefaultAppPool") {
+            Restart-WebAppPool "DefaultAppPool"
+          }
