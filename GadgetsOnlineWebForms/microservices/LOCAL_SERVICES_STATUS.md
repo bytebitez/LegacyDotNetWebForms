@@ -1,45 +1,58 @@
-# Local Microservices Status
+# Docker Microservices Status
 
-## ✅ All Services Running Successfully!
+## ✅ All Services Running Successfully in Docker!
 
-All microservices are now running locally and communicating properly.
+All microservices are running in Docker containers with Swagger enabled.
 
 ### Service Status
 
-| Service | HTTPS Port | HTTP Port | Status |
-|---------|-----------|-----------|--------|
-| Catalog API | 5001 | 5011 | ✅ Running |
-| Cart API | 5002 | 5012 | ✅ Running |
-| Order API | 5003 | 5013 | ✅ Running |
-| API Gateway | 5000 | 5010 | ✅ Running |
-| Web Frontend | 5100 | 5110 | ✅ Running |
+| Service | Port | Status | Swagger |
+|---------|------|--------|---------|
+| Catalog API | 5001 | ✅ Running | ✅ http://localhost:5001/swagger |
+| Cart API | 5002 | ✅ Running | ✅ http://localhost:5002/swagger |
+| Order API | 5003 | ✅ Running | ✅ http://localhost:5003/swagger |
+| API Gateway | 5000 | ✅ Running | N/A |
+| Web Frontend | 5100 | ✅ Running | N/A |
+| SQL Server | 1433 | ✅ Running (Healthy) | N/A |
 
 ### Verification Tests Completed
 
-✅ **Catalog API Direct Test**: Successfully returned 13 products
-✅ **API Gateway Routing**: Successfully proxied requests to Catalog API
-✅ **Categories API**: Successfully returned 5 categories
+✅ **Swagger Endpoints**: All three backend APIs return Status 200
+✅ **Catalog API**: Successfully returned 13 products via API Gateway
+✅ **API Gateway Routing**: Successfully proxied requests to backend services
+✅ **Application**: Products displaying correctly on web frontend
 
 ### Communication Flow
 
 ```
-Browser → Web Frontend (5100) → API Gateway (5000) → Backend Services (5011, 5012, 5013)
+Browser → Web Frontend (5100) → API Gateway (5000) → Backend Services (5001, 5002, 5003) → SQL Server (1433)
 ```
 
 ## How to Access the Application
 
-### Option 1: HTTPS (Recommended for Production)
+### Web Application
 Open your browser and navigate to:
 ```
-https://localhost:5100
+http://localhost:5100
 ```
 
-**Note**: You may see a certificate warning because we're using a self-signed development certificate. Click "Advanced" and "Proceed" to continue.
+### Swagger API Documentation
 
-### Option 2: HTTP (Easier for Testing)
-Open your browser and navigate to:
+Access interactive API documentation for each service:
+
+**Catalog API** - Manage products and categories
 ```
-http://localhost:5110
+http://localhost:5001/swagger
+```
+
+**Cart API** - Manage shopping carts
+```
+http://localhost:5002/swagger
+```
+
+**Order API** - Manage orders
+```
+http://localhost:5003/swagger
 ```
 
 ## What You Should See
@@ -53,25 +66,41 @@ http://localhost:5110
 
 ## API Endpoints Available
 
-### Direct API Testing (via API Gateway)
+### Via API Gateway (Recommended)
 
-Test these endpoints using your browser or tools like Postman:
+Test these endpoints using your browser, Swagger UI, or tools like Postman:
 
 ```
 # Get all products
-http://localhost:5010/api/products
+http://localhost:5000/api/products
 
 # Get categories
-http://localhost:5010/api/categories
+http://localhost:5000/api/categories
 
 # Get products by category (e.g., category 1 = Mobile Phones)
-http://localhost:5010/api/categories/1/products
+http://localhost:5000/api/categories/1/products
 
 # Get product by ID
-http://localhost:5010/api/products/1
+http://localhost:5000/api/products/1
 
 # Get bestsellers
-http://localhost:5010/api/products/bestsellers?count=5
+http://localhost:5000/api/products/bestsellers?count=5
+```
+
+### Direct API Access (For Testing)
+
+You can also access APIs directly (bypassing the gateway):
+
+```
+# Catalog API
+http://localhost:5001/api/products
+http://localhost:5001/api/categories
+
+# Cart API
+http://localhost:5002/api/cart/{userId}
+
+# Order API
+http://localhost:5003/api/orders/{userId}
 ```
 
 ## Troubleshooting
@@ -80,35 +109,71 @@ http://localhost:5010/api/products/bestsellers?count=5
 
 1. **Check Browser Console**: Press F12 and look for errors in the Console tab
 2. **Check Network Tab**: Look for failed API requests
-3. **Verify Services**: All 5 services should be running (check process list)
+3. **Verify Containers**: Run `docker ps` to ensure all 6 containers are running
+4. **Check Container Logs**: Run `docker logs microservices-web-frontend-1` to see errors
 
-### SSL Certificate Issues
+### Container Management
 
-If you see SSL errors in the browser:
-- Click "Advanced" → "Proceed to localhost (unsafe)"
-- Or use HTTP version: http://localhost:5110
+**View running containers:**
+```bash
+docker ps
+```
 
-### Service Communication Issues
+**View container logs:**
+```bash
+docker logs microservices-catalog-api-1
+docker logs microservices-cart-api-1
+docker logs microservices-order-api-1
+docker logs microservices-api-gateway-1
+docker logs microservices-web-frontend-1
+docker logs microservices-sqlserver-1
+```
 
-If services can't communicate:
-- Check that all services are running
-- Verify ports are not blocked by firewall
-- Check service logs for errors
+**Restart a specific service:**
+```bash
+docker restart microservices-catalog-api-1
+```
+
+**Stop all services:**
+```bash
+docker-compose down
+```
+
+**Start all services:**
+```bash
+docker-compose up -d
+```
+
+**Rebuild and restart:**
+```bash
+docker-compose up --build -d
+```
 
 ## Next Steps
 
-Once you verify the application works locally:
+Once you verify the application works in Docker:
 
-1. ✅ **Local Services Working** ← YOU ARE HERE
-2. 🔄 **Dockerize Services** - Build and run with Docker Compose
-3. 🚀 **Deploy to Cloud** - Deploy to AWS/Azure/GCP
+1. ✅ **Local Services Working** - COMPLETED
+2. ✅ **Dockerize Services** - COMPLETED ← YOU ARE HERE
+3. ✅ **Swagger Documentation** - COMPLETED
+4. 🚀 **Deploy to AWS** - Ready when you are (see AWS_DEPLOYMENT_GUIDE.md)
 
-## Process IDs (for stopping services)
+## Docker Container Information
 
-- Process 1: Catalog API
-- Process 2: Cart API  
-- Process 3: Order API
-- Process 5: API Gateway
-- Process 6: Web Frontend
+All containers are running with the following configuration:
 
-To stop all services, use the Kiro process management tools.
+- **Environment**: Development (Swagger enabled)
+- **Restart Policy**: on-failure (auto-restart if crashes)
+- **Health Checks**: SQL Server has health check configured
+- **Networking**: All services communicate via Docker internal network
+- **Volumes**: SQL Server data persisted in Docker volume
+
+## Swagger Configuration
+
+Swagger is configured to:
+- Only run in Development environment (ASPNETCORE_ENVIRONMENT=Development)
+- Provide interactive API documentation
+- Allow testing API endpoints directly from the browser
+- Display request/response schemas
+
+To disable Swagger in production, set `ASPNETCORE_ENVIRONMENT=Production` in docker-compose.yml
