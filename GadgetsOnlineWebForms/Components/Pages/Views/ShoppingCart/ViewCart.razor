@@ -70,11 +70,15 @@
     protected ShoppingCartViewModel Model;
     private string updateMessage = string.Empty;
     private const string CartSessionKey = "CartId";
+    private string _cartId;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         try
         {
+            // Initialize cart ID first
+            await InitializeCartId();
+            
             var uri = new Uri(NavigationManager.Uri);
             var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
             
@@ -104,6 +108,44 @@
                 CartItems = new List<GadgetsOnline.Models.Cart>(), 
                 CartTotal = 0 
             };
+        }
+    }
+
+    private async Task InitializeCartId()
+    {
+        var httpContext = HttpContextAccessor.HttpContext;
+        
+        if (httpContext != null)
+        {
+            _cartId = httpContext.Session.GetString(CartSessionKey);
+            
+            if (string.IsNullOrEmpty(_cartId))
+            {
+                if (!string.IsNullOrWhiteSpace(httpContext.User?.Identity?.Name))
+                {
+                    _cartId = httpContext.User.Identity.Name;
+                }
+                else
+                {
+                    _cartId = Guid.NewGuid().ToString();
+                }
+                
+                // Try to set session, but don't fail if we can't
+                try
+                {
+                    httpContext.Session.SetString(CartSessionKey, _cartId);
+                }
+                catch (InvalidOperationException)
+                {
+                    // Session cannot be established after response has started
+                    // This is expected in Blazor Server, we'll use the generated ID
+                    Logger.LogWarning("Could not set session after response started, using temporary cart ID");
+                }
+            }
+        }
+        else
+        {
+            _cartId = Guid.NewGuid().ToString();
         }
     }
 
@@ -174,24 +216,6 @@
 
     private string GetCartId()
     {
-        var httpContext = HttpContextAccessor.HttpContext;
-        
-        if (httpContext.Session.GetString(CartSessionKey) == null)
-        {
-            if (!string.IsNullOrWhiteSpace(httpContext.User.Identity.Name))
-            {
-                httpContext.Session.SetString(CartSessionKey, httpContext.User.Identity.Name);
-            }
-            else
-            {
-                // Generate a new random GUID using System.Guid class
-                Guid tempCartId = Guid.NewGuid();
-
-                // Send tempCartId back to client as a session value
-                httpContext.Session.SetString(CartSessionKey, tempCartId.ToString());
-            }
-        }
-
-        return httpContext.Session.GetString(CartSessionKey);
+        return _cartId ?? Guid.NewGuid().ToString();
     }
 }
