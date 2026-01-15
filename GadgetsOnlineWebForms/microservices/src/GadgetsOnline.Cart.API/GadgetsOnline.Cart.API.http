@@ -1,0 +1,6 @@
+@GadgetsOnline.Cart.API_HostAddress = http://localhost:5172
+
+GET {{GadgetsOnline.Cart.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,6 @@
+@GadgetsOnline.ApiGateway_HostAddress = http://localhost:5109
+
+GET {{GadgetsOnline.ApiGateway_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

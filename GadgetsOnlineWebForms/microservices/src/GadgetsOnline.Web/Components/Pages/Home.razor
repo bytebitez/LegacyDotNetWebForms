@@ -1,0 +1,64 @@
+﻿@page "/"
+@using GadgetsOnline.Shared.Contracts
+@using GadgetsOnline.Web.Services
+@inject ICatalogService CatalogService
+@inject ILogger<Home> Logger
+@rendermode InteractiveServer
+
+<PageTitle>Gadgets Online - Home</PageTitle>
+
+<div id="promotion" style="margin-bottom: 30px;">
+    <img src="/Content/Images/home-showcase.png" alt="Electronics Sale - Up to 20% Off" style="max-width: 100%; height: auto;" />
+</div>
+
+<h3><em>Our best selling</em> Gadgets Online.</h3>
+
+<div class="row">
+    <ul id="album-list" style="list-style:none; display:flex; flex-wrap:wrap; gap:20px;">
+        @if (products != null && products.Any())
+        {
+            @foreach (var product in products)
+            {
+                <li style="width:200px; text-align:center;">
+                    <a href="/product/@product.ProductId">
+                        <img alt="@product.Name" src="@product.ProductArtUrl" style="width:150px; height:150px; object-fit:cover;" />
+                        <div style="margin-top:10px;">
+                            <strong>@product.Name</strong>
+                            <div>$@product.Price.ToString("F2")</div>
+                        </div>
+                    </a>
+                </li>
+            }
+        }
+        else if (isLoading)
+        {
+            <li>Loading products...</li>
+        }
+        else
+        {
+            <li>No products available.</li>
+        }
+    </ul>
+</div>
+
+@code {
+    private List<ProductDto> products = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            products = await CatalogService.GetBestSellersAsync(6);
+            Logger.LogInformation("Loaded {Count} bestselling products", products.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading bestsellers");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

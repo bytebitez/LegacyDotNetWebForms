@@ -1,0 +1,69 @@
+@page "/category/{CategoryId:int}"
+@using GadgetsOnline.Shared.Contracts
+@using GadgetsOnline.Web.Services
+@inject ICatalogService CatalogService
+@inject ILogger<Products> Logger
+@rendermode InteractiveServer
+
+<PageTitle>@categoryName - Gadgets Online</PageTitle>
+
+<div class="genre">
+    <h3>@categoryName</h3>
+    <ul id="album-list" style="list-style:none; display:flex; flex-wrap:wrap; gap:20px;">
+        @if (products != null && products.Any())
+        {
+            @foreach (var product in products)
+            {
+                <li style="width:200px; text-align:center;">
+                    <a href="/product/@product.ProductId">
+                        <img alt="@product.Name" src="@product.ProductArtUrl" style="width:150px; height:150px; object-fit:cover;" />
+                        <div style="margin-top:10px;">
+                            <strong>@product.Name</strong>
+                            <div>$@product.Price.ToString("F2")</div>
+                        </div>
+                    </a>
+                </li>
+            }
+        }
+        else if (isLoading)
+        {
+            <li>Loading products...</li>
+        }
+        else
+        {
+            <li>No products found in this category.</li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter]
+    public int CategoryId { get; set; }
+
+    private List<ProductDto> products = new();
+    private string categoryName = "Products";
+    private bool isLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        try
+        {
+            products = await CatalogService.GetProductsByCategoryAsync(CategoryId);
+            
+            var categories = await CatalogService.GetCategoriesAsync();
+            var category = categories.FirstOrDefault(c => c.CategoryId == CategoryId);
+            categoryName = category?.Name ?? "Products";
+            
+            Logger.LogInformation("Loaded {Count} products for category {CategoryId}", products.Count, CategoryId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading products for category {CategoryId}", CategoryId);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

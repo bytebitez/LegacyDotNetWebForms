@@ -1,0 +1,136 @@
+@page "/cart"
+@using GadgetsOnline.Shared.Contracts
+@using GadgetsOnline.Web.Services
+@using Microsoft.JSInterop
+@inject ICartService CartService
+@inject NavigationManager Navigation
+@inject ILogger<Cart> Logger
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Shopping Cart - Gadgets Online</PageTitle>
+
+<h3><em>Review</em> your cart:</h3>
+
+@if (cart != null && cart.Items.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Price (each)</th>
+                <th>Quantity</th>
+                <th>Subtotal</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in cart.Items)
+            {
+                <tr>
+                    <td>
+                        <a href="/product/@item.ProductId">@item.ProductName</a>
+                    </td>
+                    <td>$@item.Price.ToString("F2")</td>
+                    <td>@item.Quantity</td>
+                    <td>$@item.Total.ToString("F2")</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => RemoveFromCart(item.ProductId)">
+                            Remove
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3"><strong>Total</strong></td>
+                <td colspan="2"><strong>$@cart.Total.ToString("F2")</strong></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="mt-3">
+        <button class="btn btn-primary" @onclick="Checkout">Proceed to Checkout</button>
+        <a href="/" class="btn btn-secondary">Continue Shopping</a>
+    </div>
+}
+else if (isLoading)
+{
+    <p>Loading cart...</p>
+}
+else
+{
+    <div class="alert alert-info">
+        <p>Your cart is empty.</p>
+        <a href="/" class="btn btn-primary">Start Shopping</a>
+    </div>
+}
+
+@code {
+    private CartDto? cart;
+    private bool isLoading = true;
+    private string cartId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cartId = await GetOrCreateCartIdAsync();
+        await LoadCart();
+    }
+
+    private async Task LoadCart()
+    {
+        isLoading = true;
+        try
+        {
+            cart = await CartService.GetCartAsync(cartId);
+            Logger.LogInformation("Loaded cart {CartId} with {ItemCount} items", cartId, cart?.ItemCount ?? 0);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading cart {CartId}", cartId);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RemoveFromCart(int productId)
+    {
+        try
+        {
+            await CartService.RemoveFromCartAsync(cartId, productId);
+            await LoadCart();
+            Logger.LogInformation("Removed product {ProductId} from cart {CartId}", productId, cartId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error removing product {ProductId} from cart {CartId}", productId, cartId);
+        }
+    }
+
+    private void Checkout()
+    {
+        Navigation.NavigateTo($"/checkout?cartId={cartId}");
+    }
+
+    private async Task<string> GetOrCreateCartIdAsync()
+    {
+        try
+        {
+            var cartId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "cartId");
+            if (string.IsNullOrEmpty(cartId))
+            {
+                cartId = "user-cart-" + Guid.NewGuid().ToString();
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "cartId", cartId);
+            }
+            return cartId;
+        }
+        catch
+        {
+            // Fallback if localStorage is not available
+            return "user-cart-" + Guid.NewGuid().ToString().Substring(0, 8);
+        }
+    }
+}

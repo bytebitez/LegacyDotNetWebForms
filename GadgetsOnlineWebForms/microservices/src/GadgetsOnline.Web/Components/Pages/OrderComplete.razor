@@ -1,0 +1,109 @@
+@page "/order-complete/{OrderId:int}"
+@using GadgetsOnline.Shared.Contracts
+@using GadgetsOnline.Web.Services
+@inject IOrderService OrderService
+@inject ILogger<OrderComplete> Logger
+@rendermode InteractiveServer
+
+<PageTitle>Order Complete - Gadgets Online</PageTitle>
+
+<h2>Order Complete!</h2>
+
+@if (order != null)
+{
+    <div class="alert alert-success">
+        <h4>Thank you for your order!</h4>
+        <p>Your order number is: <strong>@order.OrderId</strong></p>
+        <p>Order Date: @order.OrderDate.ToString("MMMM dd, yyyy")</p>
+    </div>
+
+    <h4>Order Details</h4>
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5>Shipping Address</h5>
+            <p>
+                @order.FirstName @order.LastName<br />
+                @order.Address<br />
+                @order.City, @order.State @order.PostalCode<br />
+                @order.Country
+            </p>
+            <p>
+                <strong>Email:</strong> @order.Email<br />
+                <strong>Phone:</strong> @order.Phone
+            </p>
+        </div>
+    </div>
+
+    @if (order.OrderDetails.Any())
+    {
+        <h4>Items Ordered</h4>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var detail in order.OrderDetails)
+                {
+                    <tr>
+                        <td>@detail.ProductName</td>
+                        <td>@detail.Quantity</td>
+                        <td>$@detail.UnitPrice.ToString("F2")</td>
+                        <td>$@((detail.Quantity * detail.UnitPrice).ToString("F2"))</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3"><strong>Total</strong></td>
+                    <td><strong>$@order.Total.ToString("F2")</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    }
+
+    <div class="mt-3">
+        <a href="/" class="btn btn-primary">Continue Shopping</a>
+    </div>
+}
+else if (isLoading)
+{
+    <p>Loading order details...</p>
+}
+else
+{
+    <div class="alert alert-danger">
+        <p>Order not found.</p>
+        <a href="/" class="btn btn-primary">Return to Home</a>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int OrderId { get; set; }
+
+    private OrderDto? order;
+    private bool isLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        try
+        {
+            order = await OrderService.GetOrderAsync(OrderId);
+            Logger.LogInformation("Loaded order {OrderId}", OrderId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading order {OrderId}", OrderId);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

@@ -1,0 +1,119 @@
+@page "/product/{ProductId:int}"
+@using GadgetsOnline.Shared.Contracts
+@using GadgetsOnline.Web.Services
+@using Microsoft.JSInterop
+@inject ICatalogService CatalogService
+@inject ICartService CartService
+@inject NavigationManager Navigation
+@inject ILogger<ProductDetail> Logger
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>@(product?.Name ?? "Product") - Gadgets Online</PageTitle>
+
+@if (product != null)
+{
+    <div style="display:flex; gap:40px; margin:20px 0;">
+        <div>
+            <img src="@product.ProductArtUrl" alt="@product.Name" style="width:300px; height:300px; object-fit:cover;" />
+        </div>
+        <div>
+            <h2>@product.Name</h2>
+            <p><strong>Category:</strong> @product.CategoryName</p>
+            <p><strong>Price:</strong> $@product.Price.ToString("F2")</p>
+            
+            <button class="btn btn-primary" @onclick="AddToCart" disabled="@isAddingToCart">
+                @if (isAddingToCart)
+                {
+                    <span>Adding...</span>
+                }
+                else
+                {
+                    <span>Add to Cart</span>
+                }
+            </button>
+            
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="alert alert-success mt-3">@message</div>
+            }
+        </div>
+    </div>
+}
+else if (isLoading)
+{
+    <p>Loading product...</p>
+}
+else
+{
+    <p>Product not found.</p>
+}
+
+@code {
+    [Parameter]
+    public int ProductId { get; set; }
+
+    private ProductDto? product;
+    private bool isLoading = true;
+    private bool isAddingToCart = false;
+    private string message = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        try
+        {
+            product = await CatalogService.GetProductByIdAsync(ProductId);
+            Logger.LogInformation("Loaded product {ProductId}", ProductId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading product {ProductId}", ProductId);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task AddToCart()
+    {
+        isAddingToCart = true;
+        message = string.Empty;
+        
+        try
+        {
+            var cartId = await GetOrCreateCartIdAsync();
+            await CartService.AddToCartAsync(cartId, ProductId);
+            Logger.LogInformation("Added product {ProductId} to cart {CartId}", ProductId, cartId);
+            
+            // Redirect to cart page after successful add
+            Navigation.NavigateTo("/cart");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error adding product {ProductId} to cart", ProductId);
+            message = "Error adding to cart. Please try again.";
+            isAddingToCart = false;
+        }
+    }
+
+    private async Task<string> GetOrCreateCartIdAsync()
+    {
+        try
+        {
+            var cartId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "cartId");
+            if (string.IsNullOrEmpty(cartId))
+            {
+                cartId = "user-cart-" + Guid.NewGuid().ToString();
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "cartId", cartId);
+            }
+            return cartId;
+        }
+        catch
+        {
+            // Fallback if localStorage is not available
+            return "user-cart-" + Guid.NewGuid().ToString().Substring(0, 8);
+        }
+    }
+}

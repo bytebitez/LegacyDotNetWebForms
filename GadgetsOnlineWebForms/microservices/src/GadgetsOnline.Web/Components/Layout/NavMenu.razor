@@ -1,0 +1,53 @@
+﻿@using GadgetsOnline.Shared.Contracts
+@using GadgetsOnline.Web.Services
+@inject ICatalogService CatalogService
+@implements IDisposable
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Gadgets Online</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        @if (categories != null && categories.Any())
+        {
+            <div class="nav-item px-3">
+                <div class="nav-link text-white"><strong>Categories</strong></div>
+            </div>
+            @foreach (var category in categories)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="@($"category/{category.CategoryId}")">
+                        <span aria-hidden="true"></span> @category.Name
+                    </NavLink>
+                </div>
+            }
+        }
+    </nav>
+</div>
+
+@code {
+    private List<CategoryDto> categories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            categories = await CatalogService.GetCategoriesAsync();
+        }
+        catch (Exception)
+        {
+            // Log error but don't fail the page
+            categories = new List<CategoryDto>();
+        }
+    }
+
+    public void Dispose()
+    {
+        // Cleanup if needed
+    }
+}

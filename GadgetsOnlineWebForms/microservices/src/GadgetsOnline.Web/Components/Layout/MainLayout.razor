@@ -1,0 +1,29 @@
+﻿@inherits LayoutComponentBase
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <a href="/">🏠 Home</a>
+            <span style="margin: 0 10px;">|</span>
+            <a href="/cart">🛒 Shopping Cart</a>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+        
+        <footer class="px-4 py-3" style="border-top: 1px solid #e5e5e5; margin-top: 80px; text-align: right;">
+            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+        </footer>
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
