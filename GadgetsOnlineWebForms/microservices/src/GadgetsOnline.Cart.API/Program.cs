@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using GadgetsOnline.Cart.API.Data;
 using GadgetsOnline.Cart.API.Services;
+using GadgetsOnline.Cart.API.Consumers;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +21,28 @@ builder.Services.AddHttpClient<ICatalogService, CatalogService>()
         }
         return handler;
     });
+
+// Add MassTransit with RabbitMQ
+builder.Services.AddMassTransit(x =>
+{
+    // Add consumers
+    x.AddConsumer<OrderCreatedConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitMqHost = builder.Configuration.GetValue<string>("RabbitMQ:Host") ?? "localhost";
+        var rabbitMqUser = builder.Configuration.GetValue<string>("RabbitMQ:Username") ?? "guest";
+        var rabbitMqPass = builder.Configuration.GetValue<string>("RabbitMQ:Password") ?? "guest";
+
+        cfg.Host(rabbitMqHost, "/", h =>
+        {
+            h.Username(rabbitMqUser);
+            h.Password(rabbitMqPass);
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 // Add Swagger
 builder.Services.AddEndpointsApiExplorer();

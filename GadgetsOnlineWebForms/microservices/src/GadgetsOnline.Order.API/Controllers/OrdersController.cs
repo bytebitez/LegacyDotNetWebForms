@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using GadgetsOnline.Order.API.Data;
 using GadgetsOnline.Order.API.Services;
 using GadgetsOnline.Shared.Contracts;
+using GadgetsOnline.Shared.Contracts.Events;
+using MassTransit;
 
 namespace GadgetsOnline.Order.API.Controllers;
 
@@ -12,11 +14,13 @@ public class OrdersController : ControllerBase
 {
     private readonly OrderDbContext _context;
     private readonly ICartService _cartService;
+    private readonly IPublishEndpoint _publishEndpoint;
 
-    public OrdersController(OrderDbContext context, ICartService cartService)
+    public OrdersController(OrderDbContext context, ICartService cartService, IPublishEndpoint publishEndpoint)
     {
         _context = context;
         _cartService = cartService;
+        _publishEndpoint = publishEndpoint;
     }
 
     [HttpPost]
@@ -54,6 +58,24 @@ public class OrdersController : ControllerBase
 
         _context.Orders.Add(order);
         await _context.SaveChangesAsync();
+
+        // Publish OrderCreated event
+        var orderCreatedEvent = new OrderCreatedEvent
+        {
+            OrderId = order.OrderId,
+            Username = order.Username,
+            CartId = request.CartId,
+            Total = order.Total,
+            OrderDate = order.OrderDate,
+            Items = order.OrderDetails.Select(od => new OrderItemEvent
+            {
+                ProductId = od.ProductId,
+                Quantity = od.Quantity,
+                UnitPrice = od.UnitPrice
+            }).ToList()
+        };
+
+        await _publishEndpoint.Publish(orderCreatedEvent);
 
         await _cartService.ClearCartAsync(request.CartId);
 

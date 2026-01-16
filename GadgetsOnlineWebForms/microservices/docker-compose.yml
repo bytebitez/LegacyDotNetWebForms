@@ -25,11 +25,16 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__CartDb=Server=sqlserver;Database=CartDB;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True
       - Services__CatalogApi=http://catalog-api:8080
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
     depends_on:
       sqlserver:
         condition: service_healthy
       catalog-api:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     restart: on-failure
 
   order-api:
@@ -42,11 +47,16 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__OrderDb=Server=sqlserver;Database=OrderDB;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True
       - Services__CartApi=http://cart-api:8080
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
     depends_on:
       sqlserver:
         condition: service_healthy
       cart-api:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     restart: on-failure
 
   api-gateway:
@@ -99,5 +109,23 @@ services:
       retries: 10
       start_period: 10s
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: microservices-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   sqlserver-data:
+  rabbitmq-data:
