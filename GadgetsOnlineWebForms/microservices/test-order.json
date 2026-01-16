@@ -1,0 +1,13 @@
+{
+  "cartId": "test-order-verification",
+  "username": "testuser",
+  "firstName": "Test",
+  "lastName": "User",
+  "address": "123 Test Street",
+  "city": "Seattle",
+  "state": "WA",
+  "postalCode": "98101",
+  "country": "USA",
+  "phone": "555-0123",
+  "email": "test@example.com"
+}
