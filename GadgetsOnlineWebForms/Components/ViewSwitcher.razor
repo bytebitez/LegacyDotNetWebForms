@@ -1,0 +1,89 @@
+@namespace GadgetsOnlineWebForms.Components.ViewSwitcher
+
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Http
+@using Microsoft.Extensions.Logging
+@inject IHttpContextAccessor HttpContextAccessor
+@inject ILogger<ViewSwitcher> Logger
+@inject NavigationManager NavigationManager
+
+@if (IsVisible)
+{
+    <div id="viewSwitcher">
+        @CurrentView view | <NavLink href="@SwitchUrl" data-ajax="false">Switch to @AlternateView</NavLink>
+    </div>
+}
+
+@code {
+    private string CurrentView { get; set; } = string.Empty;
+    private string AlternateView { get; set; } = string.Empty;
+    private string SwitchUrl { get; set; } = string.Empty;
+    private bool IsVisible { get; set; } = true;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var httpContext = HttpContextAccessor.HttpContext;
+            if (httpContext == null)
+            {
+                Logger.LogWarning("HttpContext is null in ViewSwitcher");
+                IsVisible = false;
+                return;
+            }
+
+            // Determine current view based on user agent
+            var isMobile = IsMobileDevice(httpContext);
+            CurrentView = isMobile ? "Mobile" : "Desktop";
+
+            // Determine alternate view
+            AlternateView = isMobile ? "Desktop" : "Mobile";
+
+            // Get current URL
+            var currentUrl = NavigationManager.Uri;
+            var returnUrl = NavigationManager.ToBaseRelativePath(currentUrl);
+            if (string.IsNullOrEmpty(returnUrl))
+            {
+                returnUrl = "/";
+            }
+
+            // Create switch URL
+            SwitchUrl = $"/SwitchView?view={AlternateView}&returnUrl={Uri.EscapeDataString(returnUrl)}";
+
+            Logger.LogInformation("ViewSwitcher initialized. Current view: {CurrentView}, Alternate view: {AlternateView}", CurrentView, AlternateView);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error initializing ViewSwitcher");
+            IsVisible = false;
+        }
+    }
+
+    private bool IsMobileDevice(HttpContext context)
+    {
+        try
+        {
+            var userAgent = context.Request.Headers["User-Agent"].ToString();
+            
+            if (string.IsNullOrEmpty(userAgent))
+            {
+                return false;
+            }
+
+            // Check for mobile user agents
+            var mobileKeywords = new[]
+            {
+                "Mobile", "Android", "iPhone", "iPad", "iPod", "BlackBerry",
+                "Windows Phone", "Opera Mini", "IEMobile", "webOS"
+            };
+
+            return mobileKeywords.Any(keyword => 
+                userAgent.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error detecting mobile device");
+            return false;
+        }
+    }
+}
