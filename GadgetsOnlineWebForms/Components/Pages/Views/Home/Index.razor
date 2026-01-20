@@ -1,0 +1,55 @@
+@namespace GadgetsOnlineWebForms.Components.Pages.Views.Home.Index
+
+@page "/"
+@page "/Index"
+@using GadgetsOnline.Models
+@using GadgetsOnline.Services
+@using Microsoft.AspNetCore.Components
+@rendermode InteractiveServer
+
+<PageTitle>Welcome to Gadgets Online!</PageTitle>
+
+<div id="promotion">
+</div>
+
+<h3><em>Our best selling </em>Gadgets Online.</h3>
+
+<div class="row">
+    <ul id="album-list">
+        @if (Model != null)
+        {
+            @foreach (var product in Model)
+            {
+                var productUrl = "/Views/Store/Details?productId=" + product.ProductId.ToString();
+                <li>
+                    <NavLink href="@productUrl">
+                        <img alt="@product.Name" src="@product.ProductArtUrl" />
+                        <span>@product.Name</span>
+                    </NavLink>
+                </li>
+            }
+        }
+    </ul>
+</div>
+
+@code {
+    [Inject]
+    private ILogger<Index> Logger { get; set; } = default!;
+
+    protected List<Product>? Model;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            var inventory = new Inventory();
+            Model = inventory.GetBestSellers(6);
+            Logger.LogInformation("Successfully loaded {Count} best selling products", Model?.Count ?? 0);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading best selling products");
+            Model = new List<Product>();
+        }
+    }
+}

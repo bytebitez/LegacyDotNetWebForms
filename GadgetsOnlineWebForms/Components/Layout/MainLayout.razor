@@ -1,0 +1,44 @@
+
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="/favicon.ico" rel="shortcut icon" type="image/x-icon" />
+</head>
+<body>
+    <div id="header" style="margin-top:10px">
+        <h1 class="font-italic">
+            <a href="/">
+                Welcome to Gadgets Online!
+            </a>
+        </h1>
+
+        <ul id="navlist">
+            <li><a href="/home" id="current">Home</a></li>
+            <li><a href="/shoppingcart">ShoppingCart</a></li>
+        </ul>
+    </div>
+
+    <CategoryMenu />
+
+    <div id="main">
+        @Body
+    </div>
+
+    <div id="footer">
+        <a href="https://aws.amazon.com/developer/language/net/"> AWS &#10084;&#65039; ASP.NET </a>
+    </div>
+</body>
+</html>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Page_Load logic from Site.Master.cs would go here
+        // Currently empty as the original Page_Load was empty
+    }
+}
